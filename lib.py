@@ -7,14 +7,14 @@ class Reader:
 
     ALLOWED_EXTENSIONS = ('csv', 'json', 'pickle')
 
-    def __init__(self, path, destination, changes):
+    def __init__(self, path, destination, changes, filetype=''):
         self.filename = Path(path).name
         self.path = path
         self.parent_path = Path(self.path).parent  
         self.destination = destination
         self.changes = changes
         self.cwd = Path.cwd()
-        self.filetype = self.set_filetype()
+        self.filetype = filetype
         self.validated = self.validate_source()
 
     def validate_source(self):
@@ -43,8 +43,15 @@ class Reader:
             print(f'Podana ścieżka pliku wyjściowego {self.destination} nie istnieje.')
             quit()
 
-    def set_filetype(self):
-        return Path(self.filename).suffix[1:]
+    '''def set_filetype(self):
+        return Path(self.filename).suffix[1:]'''
+
+    def validate_change(self, element):
+        splitted_element = element.split(',')
+        row_index = int(splitted_element[0])
+        column_index = int(splitted_element[1])
+        change_value = splitted_element[2]
+        return row_index, column_index, change_value   
 
     def show_files_in_dir(self):
         if self.validated == 'wrong_ext':
@@ -70,10 +77,39 @@ class CSVReader(Reader):
                 file_data.append(row)
         return file_data
 
+    def mod_file(self, file_data, row_index, column_index, change_value):
+        file_data[row_index][column_index] = str(change_value)
+
+    def create_output(self, file_data):
+        self.validate_destination()
+        with open(self.destination, 'w') as file:
+            writer = csv.writer(file, delimiter=';')
+            writer.writerows(file_data)
+
 class JSONReader(Reader):
     
     def get_json_data(self):
-        pass
+        with open(self.path, 'r', newline='') as file:
+            reader = json.load(file)
+            keys = []
+            values = []
+            for item in reader.keys():
+                keys.append(item)
+            for item in reader.values():
+                values.append(item)
+        return[keys, values]
+
+    def mod_file(self, file_data, row_index, column_index, change_value):
+        file_data[column_index][row_index] = str(change_value)
+
+    def create_output(self, file_data):
+       self.validate_destination()
+       out_data = dict(zip(file_data[0], file_data[1]))
+       print(out_data)
+       with open(self.destination, 'w') as file:
+           json.dump(out_data, file)
+
+
 
 
 class PickleReader(Reader):
